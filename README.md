@@ -1,4 +1,4 @@
-# Literature Review Agent — Full-Stack App
+# Literature Review Agent 
 
 A human-in-the-loop literature review assistant:
 
@@ -12,6 +12,67 @@ A human-in-the-loop literature review assistant:
 - **Frontend**: Next.js 14 (App Router) + Tailwind CSS. Dark, academic-journal-inspired dashboard with a
   4-stage stepper, an interactive paper selection grid, and a rendered report view.
 
+## project arch 
+                         USER
+                           │
+                           ▼
+                 ┌──────────────────┐
+                 │   ORCHESTRATOR   │
+                 │   LangGraph      │
+                 └────────┬─────────┘
+                          │
+                          ▼
+                 Query Understanding
+                          │
+                          ▼
+                  Research Discovery
+                       Agent
+                          │
+                          ▼
+                 Paper Retrieval
+                 arXiv / Semantic
+                 Scholar / etc.
+                          │
+                          ▼
+                  Paper Filtering
+                          │
+                 ┌────────┴────────┐
+                 │                 │
+                 ▼                 ▼
+             Paper A            Paper B
+                 │                 │
+                 ▼                 ▼
+              Analyzer           Analyzer
+                 │                 │
+                 └────────┬────────┘
+                          │
+                          ▼
+                  Cross-Paper
+                    Synthesis
+                          │
+                          ▼
+                  Gap Detection
+                          │
+                          ▼
+               Research Direction
+                    Generator
+                          │
+                          ▼
+                Evidence Validator
+                          │
+                          ▼
+                    FINAL REVIEW
+                    
+## memory 
+                  ┌─────────────────┐
+                  │  Research       │
+                  │  Memory         │
+                  └────────┬────────┘
+                           │
+          ┌────────────────┼────────────────┐
+          ▼                ▼                ▼
+       User prefs      Past papers      Past reviews
+       
 ## Project layout
 
 ```
