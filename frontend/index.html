@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Literature Review Assistant — test console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F4EC;
+    --panel:#FFFFFF;
+    --ink:#221E19;
+    --ink-soft:#6B6355;
+    --line:#DFD7C4;
+    --accent:#2F5D5C;
+    --accent-soft:#E5EFEC;
+    --amber:#B9812E;
+    --amber-soft:#F5EADA;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'JetBrains Mono', ui-monospace, monospace;
+    display:flex;
+    flex-direction:column;
+  }
+  header{
+    border-bottom:1px solid var(--line);
+    padding:14px 22px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+    flex-shrink:0;
+  }
+  header h1{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-size:19px;
+    font-weight:600;
+    margin:0;
+  }
+  header .meta{
+    font-size:11px;
+    color:var(--ink-soft);
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+  }
+  header .thread-id{
+    background:var(--accent-soft);
+    color:var(--accent);
+    padding:2px 7px;
+    border-radius:var(--radius);
+    letter-spacing:0.02em;
+  }
+  header button{
+    font-family:inherit;
+    font-size:11px;
+    background:none;
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    padding:5px 10px;
+    border-radius:var(--radius);
+    cursor:pointer;
+  }
+  header button:hover{border-color:var(--ink-soft); color:var(--ink);}
+
+  main{
+    flex:1;
+    overflow-y:auto;
+    display:flex;
+    justify-content:center;
+  }
+  #thread{
+    width:100%;
+    max-width:760px;
+    padding:26px 20px 140px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+
+  .msg{max-width:100%;}
+  .msg .role{
+    font-size:10.5px;
+    letter-spacing:0.03em;
+    color:var(--ink-soft);
+    margin-bottom:6px;
+  }
+  .msg.user .bubble{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:10px 14px;
+    font-size:13.5px;
+    display:inline-block;
+  }
+  .msg.assistant .bubble{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-size:15.5px;
+    line-height:1.65;
+  }
+  .msg.assistant .bubble h1{font-size:22px; margin:0 0 6px;}
+  .msg.assistant .bubble h2{font-size:17px; margin:22px 0 8px; padding-top:14px; border-top:1px solid var(--line);}
+  .msg.assistant .bubble h3{font-size:15.5px; margin:16px 0 4px;}
+  .msg.assistant .bubble table{border-collapse:collapse; width:100%; font-size:13.5px; margin:8px 0;}
+  .msg.assistant .bubble th, .msg.assistant .bubble td{border:1px solid var(--line); padding:6px 9px; text-align:left;}
+  .msg.assistant .bubble ul{padding-left:20px;}
+  .msg.assistant .bubble code{font-family:'JetBrains Mono', monospace; font-size:0.85em;}
+
+  .card{
+    border:1px solid var(--amber);
+    background:var(--amber-soft);
+    border-radius:var(--radius);
+    padding:16px 18px;
+  }
+  .card .tag{
+    font-size:10.5px;
+    letter-spacing:0.04em;
+    color:var(--amber);
+    margin-bottom:8px;
+  }
+  .card p{
+    font-family:'Source Serif 4', Georgia, serif;
+    font-size:14.5px;
+    margin:0 0 12px;
+  }
+  .paper-row{
+    display:flex;
+    align-items:flex-start;
+    gap:9px;
+    padding:8px 0;
+    border-top:1px solid #E9D9B8;
+    font-size:13px;
+  }
+  .paper-row:first-of-type{border-top:none;}
+  .paper-row input{margin-top:3px;}
+  .paper-row .t{font-family:'Source Serif 4', Georgia, serif; font-size:14px;}
+  .paper-row .y{color:var(--ink-soft); font-size:11.5px;}
+
+  .round-btn{
+    display:block;
+    width:100%;
+    text-align:left;
+    font-family:inherit;
+    font-size:13px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:9px 12px;
+    margin-top:6px;
+    cursor:pointer;
+  }
+  .round-btn:hover{border-color:var(--accent); color:var(--accent);}
+
+  .card .row{display:flex; gap:8px; margin-top:12px;}
+  .card button.primary{
+    font-family:inherit;
+    font-size:12px;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:var(--radius);
+    padding:8px 14px;
+    cursor:pointer;
+  }
+  .card button.primary:hover{background:#254A49;}
+  .card button.secondary{
+    font-family:inherit;
+    font-size:12px;
+    background:none;
+    border:1px solid var(--amber);
+    color:var(--amber);
+    border-radius:var(--radius);
+    padding:8px 14px;
+    cursor:pointer;
+  }
+
+  .pending{color:var(--ink-soft); font-size:12.5px; font-style:normal;}
+  .error-msg{color:#A23B2E; font-size:12.5px;}
+
+  footer{
+    border-top:1px solid var(--line);
+    background:var(--paper);
+    padding:14px 20px;
+    display:flex;
+    justify-content:center;
+    flex-shrink:0;
+  }
+  #composer{
+    width:100%;
+    max-width:760px;
+    display:flex;
+    gap:8px;
+  }
+  #composer textarea{
+    flex:1;
+    font-family:inherit;
+    font-size:13px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    resize:none;
+    height:42px;
+    background:var(--panel);
+    color:var(--ink);
+  }
+  #composer textarea:focus{outline:none; border-color:var(--accent);}
+  #composer button{
+    font-family:inherit;
+    font-size:12.5px;
+    background:var(--ink);
+    color:var(--paper);
+    border:none;
+    border-radius:var(--radius);
+    padding:0 18px;
+    cursor:pointer;
+  }
+  #composer button:disabled{opacity:0.4; cursor:default;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Literature Review Assistant</h1>
+  <div class="meta">
+    <span>thread <span class="thread-id" id="threadLabel">none yet</span></span>
+    <button id="resetBtn">New thread</button>
+  </div>
+</header>
+
+<main><div id="thread"></div></main>
+
+<footer>
+  <div id="composer">
+    <textarea id="input" placeholder="Ask for a literature review, or ask a follow-up about one already done..."></textarea>
+    <button id="sendBtn">Send</button>
+  </div>
+</footer>
+
+<script>
+const API_BASE = "http://localhost:8000";
+
+let threadId = null;
+let busy = false;
+
+const threadEl = document.getElementById("thread");
+const inputEl = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
+const threadLabel = document.getElementById("threadLabel");
+const resetBtn = document.getElementById("resetBtn");
+
+function setThreadId(id){
+  threadId = id;
+  threadLabel.textContent = id ? id.slice(0, 8) : "none yet";
+}
+
+function scrollToBottom(){
+  window.scrollTo(0, document.body.scrollHeight);
+  threadEl.parentElement.scrollTop = threadEl.parentElement.scrollHeight;
+}
+
+function addUserMessage(text){
+  const el = document.createElement("div");
+  el.className = "msg user";
+  el.innerHTML = `<div class="role">you</div><div class="bubble"></div>`;
+  el.querySelector(".bubble").textContent = text;
+  threadEl.appendChild(el);
+  scrollToBottom();
+}
+
+function addAssistantMarkdown(md){
+  const el = document.createElement("div");
+  el.className = "msg assistant";
+  el.innerHTML = `<div class="role">assistant</div><div class="bubble"></div>`;
+  el.querySelector(".bubble").innerHTML = marked.parse(md || "*(no output)*");
+  threadEl.appendChild(el);
+  scrollToBottom();
+}
+
+function addPending(label){
+  const el = document.createElement("div");
+  el.className = "msg pending";
+  el.id = "pendingNote";
+  el.textContent = label;
+  threadEl.appendChild(el);
+  scrollToBottom();
+  return el;
+}
+
+function removePending(){
+  const p = document.getElementById("pendingNote");
+  if (p) p.remove();
+}
+
+function addError(msg){
+  const el = document.createElement("div");
+  el.className = "error-msg";
+  el.textContent = "Error: " + msg;
+  threadEl.appendChild(el);
+  scrollToBottom();
+}
+
+function setBusy(v){
+  busy = v;
+  sendBtn.disabled = v;
+  inputEl.disabled = v;
+}
+
+async function callApi(path, body){
+  const res = await fetch(API_BASE + path, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body),
+  });
+  if (!res.ok){
+    throw new Error(`${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
+function handleResult(data){
+  setThreadId(data.thread_id);
+  if (data.status === "interrupted"){
+    renderInterruptCard(data.interrupt);
+  } else {
+    addAssistantMarkdown(data.final_output);
+  }
+}
+
+function renderInterruptCard(interrupt){
+  const el = document.createElement("div");
+  el.className = "card";
+
+  if (interrupt.type === "paper_selection"){
+    const rows = interrupt.candidates.map((c, i) => `
+      <label class="paper-row">
+        <input type="checkbox" data-id="${c.id}" checked />
+        <span><span class="t">${c.title}</span><br><span class="y">${c.year ?? ""}</span></span>
+      </label>
+    `).join("");
+    el.innerHTML = `
+      <div class="tag">action needed — paper selection</div>
+      <p>${interrupt.message}</p>
+      ${rows}
+      <div class="row">
+        <button class="primary" data-action="approve-checked">Approve checked</button>
+        <button class="secondary" data-action="approve-all">Approve all</button>
+      </div>
+    `;
+    el.querySelector('[data-action="approve-checked"]').onclick = () => {
+      const ids = [...el.querySelectorAll('input[type=checkbox]:checked')].map(c => c.dataset.id);
+      resumeTurn({approved_ids: ids});
+      el.remove();
+    };
+    el.querySelector('[data-action="approve-all"]').onclick = () => {
+      resumeTurn({approve_all: true});
+      el.remove();
+    };
+
+  } else if (interrupt.type === "round_clarification"){
+    const buttons = interrupt.options.map(o =>
+      `<button class="round-btn" data-round="${o.round_id}">${o.topic}</button>`
+    ).join("");
+    el.innerHTML = `
+      <div class="tag">action needed — which round?</div>
+      <p>${interrupt.message}</p>
+      ${buttons}
+    `;
+    el.querySelectorAll(".round-btn").forEach(btn => {
+      btn.onclick = () => {
+        resumeTurn({round_id: btn.dataset.round});
+        el.remove();
+      };
+    });
+
+  } else {
+    el.innerHTML = `<div class="tag">action needed</div><p>${interrupt.message || "Unrecognized interrupt."}</p>`;
+  }
+
+  threadEl.appendChild(el);
+  scrollToBottom();
+}
+
+async function sendTurn(message){
+  addUserMessage(message);
+  setBusy(true);
+  const pending = addPending("thinking...");
+  try {
+    const data = await callApi("/chat", {thread_id: threadId, message});
+    removePending();
+    handleResult(data);
+  } catch (e) {
+    removePending();
+    addError(e.message + " — is the backend running on " + API_BASE + "?");
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function resumeTurn(resumeValue){
+  setBusy(true);
+  const pending = addPending("resuming...");
+  try {
+    const data = await callApi("/resume", {thread_id: threadId, resume: resumeValue});
+    removePending();
+    handleResult(data);
+  } catch (e) {
+    removePending();
+    addError(e.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
+sendBtn.onclick = () => {
+  const text = inputEl.value.trim();
+  if (!text || busy) return;
+  inputEl.value = "";
+  sendTurn(text);
+};
+
+inputEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey){
+    e.preventDefault();
+    sendBtn.click();
+  }
+});
+
+resetBtn.onclick = () => {
+  setThreadId(null);
+  threadEl.innerHTML = "";
+};
+</script>
+
+</body>
+</html>
