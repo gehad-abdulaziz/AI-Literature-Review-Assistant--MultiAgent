@@ -185,17 +185,7 @@ Then open `frontend/index.html` directly in a browser (no server needed for it �
 
 ---
 
-## Known limitations
 
-Being upfront about what this project doesn't cover yet, rather than implying it does:
-
-- **Single-process persistence.** SQLite checkpointing survives a restart but doesn't support multiple server instances sharing state — that needs a Postgres-backed checkpointer.
-- **No auth, no rate limiting** on the FastAPI layer — it's built for local testing, not for being exposed to the internet as-is.
-- **Concurrency across simultaneous threads is untested** in this environment (no outbound network access during development to load-test against the real Groq/arXiv APIs).
-- **Gap epistemic labels aren't schema-validated** against the four allowed values, and the certainty-language filter only scans two of the several text fields a gap can contain — it catches the obvious cases, not all of them.
-- **The frontend is a test console, not a product UI** — functional and clear, deliberately not "designed" beyond that.
-
----
 
 ## License
 
