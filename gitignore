@@ -1,0 +1,19 @@
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local persistence (created at runtime, not source)
+checkpoints.sqlite
+
+# Editor/OS cruft
+.vscode/
+.idea/
+.DS_Store

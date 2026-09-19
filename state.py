@@ -11,6 +11,10 @@ Design notes (paper-first, then code):
   itself accumulated.
 - paper_analyses: written in parallel by fan-out branches (Phase 6) -> needs
   an accumulating reducer or concurrent writes will clobber each other.
+  Each entry carries round_id (added as part of a correctness fix) so
+  consumers can scope to "this round's analyses" even though the list
+  itself accumulates for the whole thread and the same paper can recur
+  across rounds.
 """
 import operator
 from typing import Annotated, Any, Literal, Optional, TypedDict
@@ -34,6 +38,7 @@ class Paper(TypedDict, total=False):
 
 class PaperAnalysis(TypedDict, total=False):
     paper_id: str
+    round_id: str            # which round produced this analysis (see note above)
     title: str
     authors: list[str]
     year: Optional[int]

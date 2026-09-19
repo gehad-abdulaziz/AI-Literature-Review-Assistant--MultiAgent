@@ -3,8 +3,10 @@ Wires every node from every phase into the StateGraph shown in the
 architecture diagram. Checkpointer gives persistence (Phase 3) and is what
 makes `interrupt(...)` (Phase 5 / Phase 10) actually pausable/resumable.
 """
+import sqlite3
+
 from langgraph.graph import StateGraph, START, END
-from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 
 from state import GraphState
 from nodes.orchestrator import orchestrator_node, route_by_intent
@@ -94,7 +96,21 @@ def build_graph():
 
     graph.add_edge("render", END)
 
-    checkpointer = MemorySaver()
+    # BUGFIX (production persistence): MemorySaver keeps every checkpoint in
+    # this process's RAM only. Restart the process — deploys, crashes,
+    # autoscaling — and every in-flight thread, pending HITL interrupt, and
+    # round history is gone. SqliteSaver persists to disk so state survives
+    # a restart. check_same_thread=False because the graph may be invoked
+    # from a different thread than the one that opened the connection (e.g.
+    # a web framework's worker pool).
+    #
+    # This is still a single SQLite file — fine for one process / low-to-
+    # moderate concurrency, but not a multi-instance deployment (each
+    # instance would have its own file and diverge). For that, swap to
+    # langgraph-checkpoint-postgres's PostgresSaver against a shared DB —
+    # same interface, just a different connection.
+    conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
     return graph.compile(checkpointer=checkpointer)
 
 
