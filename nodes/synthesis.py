@@ -2,7 +2,7 @@
 Phase 7 — Cross-Paper Synthesis (Steps 27-28).
 """
 from state import GraphState
-from llm import call_llm
+from llm import call_llm, LLMCallError
 
 SYNTHESIS_SYSTEM = (
     "You synthesize findings across MULTIPLE research papers. Do not simply "
@@ -17,13 +17,17 @@ SYNTHESIS_SYSTEM = (
 
 def synthesis_node(state: GraphState) -> dict:
     current = state["current_round"]
-    # paper_analyses uses an accumulating (operator.add) reducer, so it holds
-    # analyses from EVERY round in this session, not just the current one.
-    # Scope down to this round's approved papers before using it.
+    round_id = current.get("round_id")
+    # BUGFIX: paper_analyses accumulates across the whole thread (operator.add
+    # reducer). If the same paper is approved again in a later round, filtering
+    # by paper_id alone would pick up both rounds' entries for it. Scope by
+    # round_id (added to PaperAnalysis in state.py) as well as paper_id.
     approved_ids = {p["id"] for p in current.get("approved_papers", [])}
     analyses = [
         a for a in state["paper_analyses"]
-        if not a.get("failed") and a.get("paper_id") in approved_ids
+        if not a.get("failed")
+        and a.get("round_id") == round_id
+        and a.get("paper_id") in approved_ids
     ]
 
     if not analyses:
@@ -37,8 +41,16 @@ def synthesis_node(state: GraphState) -> dict:
         f"Limitations: {a.get('limitations', '')}"
         for a in analyses
     )
-    synthesis = call_llm(
-        SYNTHESIS_SYSTEM,
-        f"Research topic: {current['topic']}\n\nPaper analyses:\n{analyses_text}",
-    )
+
+    try:
+        synthesis = call_llm(
+            SYNTHESIS_SYSTEM,
+            f"Research topic: {current['topic']}\n\nPaper analyses:\n{analyses_text}",
+        )
+    except LLMCallError:
+        synthesis = (
+            "Synthesis could not be generated due to an LLM service error. "
+            "Individual paper analyses are still available above."
+        )
+
     return {"current_round": {**current, "synthesis": synthesis}}

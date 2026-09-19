@@ -30,20 +30,23 @@ def fan_out_analysis(state: GraphState):
     Send list, which would otherwise leave the graph with no path forward
     (no node would ever trigger "synthesis").
     """
-    approved = state["current_round"].get("approved_papers", [])
+    current = state["current_round"]
+    approved = current.get("approved_papers", [])
+    round_id = current.get("round_id")
     if not approved:
         return "synthesis"
-    return [Send("analyze_single_paper", {"paper": p}) for p in approved]
+    return [Send("analyze_single_paper", {"paper": p, "round_id": round_id}) for p in approved]
 
 
 def analyze_single_paper_node(input: dict) -> dict:
     """
     Step 23 + 25. Runs once per paper (invoked via Send, so its input is just
-    {"paper": ...} rather than the full graph state). Any failure here is
-    caught and turned into a structured failure marker instead of raising,
-    so one bad paper can't kill the whole parallel batch.
+    {"paper": ..., "round_id": ...} rather than the full graph state). Any
+    failure here is caught and turned into a structured failure marker
+    instead of raising, so one bad paper can't kill the whole parallel batch.
     """
     paper = input["paper"]
+    round_id = input.get("round_id")
     try:
         user_prompt = (
             f"Research question context: analyze this paper on its own merits.\n\n"
@@ -57,6 +60,12 @@ def analyze_single_paper_node(input: dict) -> dict:
         result = call_llm_json(ANALYSIS_SYSTEM, user_prompt)
         analysis = {
             "paper_id": paper["id"],
+            # BUGFIX: tag with round_id. paper_analyses accumulates for the
+            # whole thread (operator.add reducer); if the same paper is
+            # approved again in a later round, this is what lets synthesis/
+            # citations/finalize unambiguously pick this round's analysis
+            # of it instead of an earlier round's.
+            "round_id": round_id,
             "title": paper.get("title", ""),
             "authors": paper.get("authors", []),
             "year": paper.get("year"),
@@ -70,6 +79,7 @@ def analyze_single_paper_node(input: dict) -> dict:
     except Exception as e:
         analysis = {
             "paper_id": paper.get("id", "unknown"),
+            "round_id": round_id,
             "title": paper.get("title", ""),
             "failed": True,
             "failure_reason": str(e),

@@ -2,7 +2,7 @@
 Phase 9 — Evidence / Citation Validation (Steps 31-33).
 """
 from state import GraphState
-from llm import call_llm_json
+from llm import call_llm_json, LLMCallError
 
 SUPPORT_SYSTEM = (
     "Given a claim and the analysis of the paper it cites, classify whether "
@@ -13,12 +13,21 @@ SUPPORT_SYSTEM = (
 
 def citation_check_node(state: GraphState) -> dict:
     current = state["current_round"]
+    round_id = current.get("round_id")
     papers_by_id = {p["id"]: p for p in current.get("approved_papers", [])}
-    # Same reducer caveat as synthesis.py — scope to this round's papers.
+    # BUGFIX: paper_analyses uses an accumulating (operator.add) reducer, so
+    # it holds analyses from EVERY round in this thread, not just this one.
+    # The same arXiv paper can be approved again in a later round, which
+    # previously produced a second entry with the same paper_id — filtering
+    # only by paper_id membership would then silently pick up whichever
+    # round's analysis happened to match. Scoping by round_id makes this
+    # round's lookup unambiguous.
     analyses_by_id = {
         a["paper_id"]: a
         for a in state["paper_analyses"]
-        if not a.get("failed") and a["paper_id"] in papers_by_id
+        if not a.get("failed")
+        and a.get("round_id") == round_id
+        and a["paper_id"] in papers_by_id
     }
     gaps = current.get("gaps", [])
 
@@ -42,11 +51,18 @@ def citation_check_node(state: GraphState) -> dict:
                 )
                 continue
 
-            result = call_llm_json(
-                SUPPORT_SYSTEM,
-                f"Claim: {claim}\n\nPaper analysis: {analysis}",
-            )
-            label = result.get("label", "unsupported") if isinstance(result, dict) else "unsupported"
+            try:
+                result = call_llm_json(
+                    SUPPORT_SYSTEM,
+                    f"Claim: {claim}\n\nPaper analysis: {analysis}",
+                )
+                label = result.get("label", "unsupported") if isinstance(result, dict) else "unsupported"
+            except (LLMCallError, ValueError):
+                # Fail closed: if we can't verify the claim, don't mark it
+                # "supported" by default — one failed classification
+                # shouldn't be able to silently green-light a citation.
+                label = "unsupported"
+
             checks.append({"claim": claim, "paper_id": paper_id, "exists": True, "support_label": label})
 
     # Step 33: simplest MVP option — flag unsupported claims inline rather

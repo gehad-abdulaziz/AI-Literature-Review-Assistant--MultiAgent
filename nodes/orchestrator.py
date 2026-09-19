@@ -7,7 +7,7 @@ Step 10: LLM classification for the non-empty case, constrained to a single
 word so downstream routing never has to parse free text.
 """
 from state import GraphState
-from llm import call_llm
+from llm import call_llm, LLMCallError
 
 CLASSIFY_SYSTEM = (
     "You classify a user's latest message in an ongoing literature-review "
@@ -32,7 +32,17 @@ def orchestrator_node(state: GraphState) -> dict:
         f"Existing research rounds so far:\n{round_topics}\n\n"
         f"User's latest message: {last_user_msg}"
     )
-    raw = call_llm(CLASSIFY_SYSTEM, user_prompt).strip().lower()
+
+    try:
+        raw = call_llm(CLASSIFY_SYSTEM, user_prompt).strip().lower()
+    except LLMCallError:
+        # Classification is unavailable. Defaulting to "new_research" would
+        # kick off a whole multi-LLM-call pipeline that's likely to hit the
+        # same outage again; "follow_up" is the cheaper failure mode — worst
+        # case it lands on a clarification interrupt that asks the user
+        # directly instead of guessing.
+        return {"intent": "follow_up"}
+
     intent = "follow_up" if "follow" in raw else "new_research"
     return {"intent": intent}
 

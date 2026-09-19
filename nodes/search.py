@@ -4,7 +4,7 @@ Phase 4 — Search / Retrieval (Steps 15-19).
 import uuid
 
 from state import GraphState
-from llm import call_llm_json
+from llm import call_llm_json, LLMCallError
 from tools.arxiv_search import search_arxiv
 from config import MAX_SEARCH_RETRIES, MIN_RELEVANT_PAPERS
 
@@ -38,8 +38,20 @@ def generate_search_queries_node(state: GraphState) -> dict:
             "\nPrevious queries returned too few relevant results. "
             "Broaden or rephrase the query(ies)."
         )
-    result = call_llm_json(QUERY_GEN_SYSTEM, f"Research topic: {topic}{hint}")
-    queries = result.get("queries", [topic]) if isinstance(result, dict) else [topic]
+
+    try:
+        result = call_llm_json(QUERY_GEN_SYSTEM, f"Research topic: {topic}{hint}")
+        # BUGFIX: call_llm_json can return a list (if the model ignores the
+        # schema), and the old code did `result.get(...)` unconditionally —
+        # AttributeError on a list, uncaught, crashes the whole graph run.
+        queries = result.get("queries") if isinstance(result, dict) else None
+        if not queries:
+            queries = [topic]
+    except (LLMCallError, ValueError):
+        # Query generation failed outright (API error or unparseable JSON).
+        # Fall back to searching the raw topic rather than crashing —
+        # academic_search_node degrades gracefully on a weak/no query too.
+        queries = [topic]
 
     return {
         "current_round": {
@@ -91,13 +103,26 @@ def relevance_ranking_node(state: GraphState) -> dict:
         f"- id={p['id']} | title={p['title']} | abstract={p['abstract'][:400]}"
         for p in candidates
     )
-    result = call_llm_json(
-        RANKING_SYSTEM,
-        f"Research topic: {current['topic']}\n\nCandidates:\n{candidate_list}",
-    )
-    relevant_ids = {
-        r["id"] for r in result.get("relevant", [])
-    } if isinstance(result, dict) else set()
+
+    try:
+        result = call_llm_json(
+            RANKING_SYSTEM,
+            f"Research topic: {current['topic']}\n\nCandidates:\n{candidate_list}",
+        )
+        # BUGFIX: old code did `r["id"]` with no guard — a candidate dict
+        # missing "id" (or a non-dict entry) raised KeyError/TypeError
+        # uncaught, crashing the whole graph run on a single malformed item.
+        relevant_ids = {
+            r["id"] for r in result.get("relevant", [])
+            if isinstance(r, dict) and "id" in r
+        } if isinstance(result, dict) else set()
+    except (LLMCallError, ValueError):
+        # Ranking failed outright. Fail closed (treat nothing as verified
+        # relevant) rather than crash — check_search_sufficiency will then
+        # either retry the search or proceed with zero papers, both of
+        # which are handled downstream (fan_out_analysis routes straight
+        # to synthesis when approved_papers is empty).
+        relevant_ids = set()
 
     ranked = [p for p in candidates if p["id"] in relevant_ids]
     return {"current_round": {**current, "ranked_papers": ranked}}

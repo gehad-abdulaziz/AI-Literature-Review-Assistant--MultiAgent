@@ -74,11 +74,19 @@ def render_round_markdown(round_data: dict) -> str:
 def render_node(state: GraphState) -> dict:
     """
     Runs after either a freshly finalized round (new_research path) or a
-    follow-up answer (follow_up path). Picks whichever is available.
+    follow-up answer (follow_up path).
+
+    BUGFIX: previously branched on `if state.get("final_output")`. That field
+    has no reducer and is never cleared, so it persists across turns in the
+    checkpointed thread. Any turn N+1 that ran the new_research path would
+    see turn N's leftover final_output (e.g. a prior follow-up answer) as
+    truthy and return THAT instead of the round it had just finished
+    rendering — the "multi-turn state" / "follow-up" bug. `intent` is the
+    right signal instead: orchestrator_node sets it exactly once, fresh,
+    every single turn, so it always reflects *this* turn's path.
     """
-    if state.get("final_output"):
-        # Follow-up path already produced its answer text.
-        return {"final_output": state["final_output"]}
+    if state.get("intent") == "follow_up":
+        return {"final_output": state.get("final_output", "(no answer produced)")}
 
     # New-research path: render the round that was just finalized (the last
     # entry appended to research_rounds).

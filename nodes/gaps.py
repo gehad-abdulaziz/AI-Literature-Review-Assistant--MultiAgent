@@ -2,7 +2,7 @@
 Phase 8 — Gap Detection & Research Direction Generation (Steps 29-30).
 """
 from state import GraphState
-from llm import call_llm_json
+from llm import call_llm_json, LLMCallError
 
 GAPS_SYSTEM = (
     "Given a cross-paper synthesis and a numbered list of the papers it "
@@ -47,10 +47,17 @@ def gaps_and_directions_node(state: GraphState) -> dict:
         f"{i + 1}. {p.get('title', '')}" for i, p in enumerate(approved)
     )
 
-    result = call_llm_json(
-        GAPS_SYSTEM,
-        f"Numbered papers:\n{paper_table}\n\nSynthesis:\n{synthesis}",
-    )
+    try:
+        result = call_llm_json(
+            GAPS_SYSTEM,
+            f"Numbered papers:\n{paper_table}\n\nSynthesis:\n{synthesis}",
+        )
+    except (LLMCallError, ValueError):
+        # Gap detection failed outright — degrade to an empty gaps/directions
+        # list rather than crash. render.py and citations.py both already
+        # handle empty lists cleanly.
+        return {"current_round": {**current, "gaps": [], "directions": []}}
+
     raw_gaps = result.get("gaps", []) if isinstance(result, dict) else []
 
     gaps, directions = [], []

@@ -4,7 +4,7 @@ Phase 10 — Follow-up Path: Round Resolution + HITL (Steps 34-37).
 from langgraph.types import interrupt
 
 from state import GraphState
-from llm import call_llm
+from llm import call_llm, LLMCallError
 
 
 def resolve_round_node(state: GraphState) -> dict:
@@ -69,5 +69,13 @@ def follow_up_answer_node(state: GraphState) -> dict:
         f"Gaps: {round_data['gaps']}\n"
         f"Directions: {round_data['directions']}"
     )
-    answer = call_llm(FOLLOW_UP_SYSTEM, f"{context}\n\nQuestion: {last_msg}")
+
+    try:
+        answer = call_llm(FOLLOW_UP_SYSTEM, f"{context}\n\nQuestion: {last_msg}")
+    except LLMCallError:
+        answer = (
+            "Sorry — I couldn't reach the language model to answer that just "
+            "now. Please try again in a moment."
+        )
+
     return {"final_output": answer}
