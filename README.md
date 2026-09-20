@@ -184,9 +184,9 @@ uvicorn api:app --reload --port 8000
 Then open `frontend/index.html` directly in a browser (no server needed for it — it's a static file that calls `http://localhost:8000`). Paper selection and round clarification render as interactive cards instead of raw JSON.
 
 ---
+see demo :https://drive.google.com/file/d/1ODgy0YdkF5kUOSrvFJTZIrzTBPj2CS9E/view?usp=sharing
 
-
-
+---
 ## License
 
 Add your preferred license here (MIT is a common default for a project like this).
