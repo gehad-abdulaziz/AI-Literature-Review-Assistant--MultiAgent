@@ -185,6 +185,7 @@ Then open `frontend/index.html` directly in a browser (no server needed for it â
 
 ---
 see demo :https://drive.google.com/file/d/1ODgy0YdkF5kUOSrvFJTZIrzTBPj2CS9E/view?usp=sharing
+presentation link :https://drive.google.com/file/d/1bQEGvYFahyiAm1IcluS-o3YKT8bhUMY3/view?usp=sharing
 
 ---
 ## License
